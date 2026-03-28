@@ -1,0 +1,9 @@
+export const GAME_ERROR_EVENT = "game:error";
+export const GAME_DICE_ROLLED_EVENT = "game:diceRolled";
+export const GAME_PLAYER_MOVED_EVENT = "game:playerMoved";
+export const GAME_TILE_RESOLVED_EVENT = "game:tileResolved";
+export const GAME_PAYMENT_APPLIED_EVENT = "game:paymentApplied";
+export const GAME_PROPERTY_PURCHASED_EVENT = "game:propertyPurchased";
+export const GAME_PLAYER_ELIMINATED_EVENT = "game:playerEliminated";
+export const GAME_PLAYER_CONNECTION_CHANGED_EVENT = "game:playerConnectionChanged";
+export const GAME_RESULT_READY_EVENT = "game:resultReady";

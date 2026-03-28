@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "useDefineForClassFields": true,
+    "baseUrl": ".",
+    "paths": {
+      "@monopoly/shared-types": ["packages/shared-types/src/index.ts"],
+      "@monopoly/shared-config": ["packages/shared-config/src/index.ts"],
+      "@monopoly/game-engine": ["packages/game-engine/src/index.ts"]
+    }
+  }
+}

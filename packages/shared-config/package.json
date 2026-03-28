@@ -1,0 +1,23 @@
+{
+  "name": "@monopoly/shared-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/shared-config/src/index.js",
+  "module": "./dist/shared-config/src/index.js",
+  "types": "./dist/shared-config/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/shared-config/src/index.d.ts",
+      "import": "./dist/shared-config/src/index.js",
+      "default": "./dist/shared-config/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@monopoly/shared-types": "0.0.0"
+  }
+}

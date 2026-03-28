@@ -1,0 +1,23 @@
+{
+  "name": "@monopoly/game-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^4.0.8",
+    "@monopoly/game-engine": "0.0.0",
+    "@monopoly/shared-config": "0.0.0",
+    "@monopoly/shared-types": "0.0.0",
+    "colyseus": "^0.17.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5"
+  }
+}

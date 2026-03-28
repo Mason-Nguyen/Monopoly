@@ -1,0 +1,16 @@
+export interface GameServerRuntimeConfig {
+  port: number;
+  nodeEnv: string;
+}
+
+function parsePort(rawPort: string | undefined, fallbackPort: number): number {
+  const parsedPort = Number.parseInt(rawPort ?? "", 10);
+  return Number.isFinite(parsedPort) ? parsedPort : fallbackPort;
+}
+
+export function getGameServerRuntimeConfig(): GameServerRuntimeConfig {
+  return {
+    port: parsePort(process.env.GAME_SERVER_PORT ?? process.env.PORT, 2567),
+    nodeEnv: process.env.NODE_ENV ?? "development"
+  };
+}

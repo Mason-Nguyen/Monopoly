@@ -1,0 +1,24 @@
+{
+  "name": "@monopoly/game-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/game-engine/src/index.js",
+  "module": "./dist/game-engine/src/index.js",
+  "types": "./dist/game-engine/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/game-engine/src/index.d.ts",
+      "import": "./dist/game-engine/src/index.js",
+      "default": "./dist/game-engine/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@monopoly/shared-config": "0.0.0",
+    "@monopoly/shared-types": "0.0.0"
+  }
+}

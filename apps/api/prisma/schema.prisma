@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserAuthType {
+  guest
+  local
+}
+
+enum MatchStatus {
+  playing
+  finished
+}
+
+enum MatchEndReason {
+  last_player_remaining
+  all_others_bankrupt
+  all_others_abandoned
+  manual_termination_dev_only
+}
+
+enum EliminationReason {
+  bankrupt
+  abandoned
+}
+
+enum TransactionType {
+  property_purchase
+  rent
+  tax
+  start_salary
+  bankruptcy_summary
+}
+
+model User {
+  id                   String           @id @default(uuid()) @db.Uuid
+  authType             UserAuthType     @map("auth_type")
+  email                String?          @unique
+  passwordHash         String?          @map("password_hash")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSeenAt           DateTime?        @map("last_seen_at") @db.Timestamptz(6)
+  profile              Profile?
+  wonMatches           Match[]          @relation("MatchWinner")
+  matchPlayers         MatchPlayer[]
+  outgoingTransactions Transaction[]    @relation("TransactionFromUser")
+  incomingTransactions Transaction[]    @relation("TransactionToUser")
+  leaderboardStat      LeaderboardStat?
+
+  @@index([createdAt], map: "users_created_at_idx")
+  @@map("users")
+}
+
+model Profile {
+  userId      String   @id @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  avatarKey   String?  @map("avatar_key")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([displayName], map: "profiles_display_name_idx")
+  @@map("profiles")
+}
+
+model Match {
+  id             String          @id @default(uuid()) @db.Uuid
+  sourceLobbyId  String?         @map("source_lobby_id")
+  boardConfigKey String          @map("board_config_key")
+  status         MatchStatus     @default(playing)
+  startedAt      DateTime        @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime?       @map("finished_at") @db.Timestamptz(6)
+  endReason      MatchEndReason? @map("end_reason")
+  winnerUserId   String?         @map("winner_user_id") @db.Uuid
+  playerCount    Int             @map("player_count")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  winner         User?           @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  players        MatchPlayer[]
+  transactions   Transaction[]
+
+  @@index([startedAt], map: "matches_started_at_idx")
+  @@index([finishedAt], map: "matches_finished_at_idx")
+  @@index([winnerUserId], map: "matches_winner_user_id_idx")
+  @@index([status], map: "matches_status_idx")
+  @@map("matches")
+}
+
+model MatchPlayer {
+  id                  String             @id @default(uuid()) @db.Uuid
+  matchId             String             @map("match_id") @db.Uuid
+  userId              String             @map("user_id") @db.Uuid
+  displayNameSnapshot String             @map("display_name_snapshot")
+  turnOrder           Int                @map("turn_order")
+  startBalance        Int                @map("start_balance")
+  finalBalance        Int?               @map("final_balance")
+  finalPosition       Int?               @map("final_position")
+  finalRank           Int?               @map("final_rank")
+  isBankrupt          Boolean            @default(false) @map("is_bankrupt")
+  isAbandoned         Boolean            @default(false) @map("is_abandoned")
+  eliminationReason   EliminationReason? @map("elimination_reason")
+  eliminatedAt        DateTime?          @map("eliminated_at") @db.Timestamptz(6)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  match               Match              @relation(fields: [matchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user                User               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@unique([matchId, userId], map: "match_players_match_id_user_id_key")
+  @@unique([matchId, turnOrder], map: "match_players_match_id_turn_order_key")
+  @@index([userId], map: "match_players_user_id_idx")
+  @@index([matchId, finalRank], map: "match_players_match_id_final_rank_idx")
+  @@map("match_players")
+}
+
+model Transaction {
+  id              String          @id @default(uuid()) @db.Uuid
+  matchId         String          @map("match_id") @db.Uuid
+  sequenceNo      Int             @map("sequence_no")
+  turnNumber      Int?            @map("turn_number")
+  transactionType TransactionType @map("transaction_type")
+  fromUserId      String?         @map("from_user_id") @db.Uuid
+  toUserId        String?         @map("to_user_id") @db.Uuid
+  propertyKey     String?         @map("property_key")
+  tileIndex       Int?            @map("tile_index")
+  amount          Int
+  metadataJson    Json?           @map("metadata_json") @db.JsonB
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  match           Match           @relation(fields: [matchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  fromUser        User?           @relation("TransactionFromUser", fields: [fromUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  toUser          User?           @relation("TransactionToUser", fields: [toUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([matchId, sequenceNo], map: "transactions_match_id_sequence_no_key")
+  @@index([matchId, createdAt], map: "transactions_match_id_created_at_idx")
+  @@index([fromUserId], map: "transactions_from_user_id_idx")
+  @@index([toUserId], map: "transactions_to_user_id_idx")
+  @@map("transactions")
+}
+
+model LeaderboardStat {
+  userId        String    @id @map("user_id") @db.Uuid
+  matchesPlayed Int       @default(0) @map("matches_played")
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  bankruptcies  Int       @default(0)
+  abandons      Int       @default(0)
+  lastMatchAt   DateTime? @map("last_match_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([wins], map: "leaderboard_stats_wins_idx")
+  @@index([matchesPlayed], map: "leaderboard_stats_matches_played_idx")
+  @@index([lastMatchAt], map: "leaderboard_stats_last_match_at_idx")
+  @@map("leaderboard_stats")
+}
