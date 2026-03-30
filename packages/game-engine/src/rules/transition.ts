@@ -4,18 +4,21 @@ import { resolveDiceRoll } from "../calculators/dice.js";
 import { cloneMatchState, createInitialMatchState } from "../reducers/match-state.js";
 import {
   canEndTurn,
-  createAwaitRollTurnState,
-  getNextActivePlayerId
+  createAwaitEndTurnState
 } from "../reducers/turn.js";
+import {
+  advanceToNextPlayableTurn,
+  getTileConfigOrThrow,
+  purchasePropertyOrThrow,
+  resolveActivePlayerTile
+} from "../resolvers/index.js";
 import type {
   EngineTransitionInput,
   EngineTransitionResult,
-  CreateEngineMatchInput,
   EngineAction,
   EngineMatchState,
   EnginePaymentAppliedEvent,
-  EnginePlayerMovedEvent,
-  EngineTurnAdvancedEvent
+  EnginePlayerMovedEvent
 } from "../types/index.js";
 import { getAvailableActions } from "./available-actions.js";
 import { EngineRuleError } from "./errors.js";
@@ -52,7 +55,7 @@ function assertActiveAction(state: EngineMatchState, action: EngineAction): void
 function applyRollDiceTransition(
   input: EngineTransitionInput
 ): EngineTransitionResult {
-  const { state, boardConfig, action, diceSource } = input;
+  const { state, boardConfig, action, diceSource, now } = input;
 
   if (action.type !== "roll_dice") {
     throw new EngineRuleError("Invalid engine action passed to roll-dice transition.");
@@ -113,6 +116,25 @@ function applyRollDiceTransition(
     events.push(salaryEvent);
   }
 
+  const tileResolution = resolveActivePlayerTile(
+    nextState,
+    boardConfig,
+    activePlayer.playerId
+  );
+
+  events.push(...tileResolution.events);
+
+  if (tileResolution.activePlayerEliminated) {
+    events.push(...advanceToNextPlayableTurn(nextState, activePlayer.playerId, now));
+
+    return {
+      state: nextState,
+      events,
+      availableActions: getAvailableActions(nextState),
+      turnCompleted: true
+    };
+  }
+
   return {
     state: nextState,
     events,
@@ -121,10 +143,83 @@ function applyRollDiceTransition(
   };
 }
 
-function applyEndTurnTransition(
+function applyBuyPropertyTransition(
+  input: EngineTransitionInput
+): EngineTransitionResult {
+  const { state, boardConfig, action } = input;
+
+  if (action.type !== "buy_property") {
+    throw new EngineRuleError("Invalid engine action passed to buy-property transition.");
+  }
+
+  if (state.turn.phase !== "await_optional_action" || !state.turn.canBuyCurrentProperty) {
+    throw new EngineRuleError("The engine is not waiting for an optional property purchase.");
+  }
+
+  if (state.turn.currentTileIndex === null) {
+    throw new EngineRuleError("The current engine turn does not have a resolved tile index.");
+  }
+
+  const currentTile = getTileConfigOrThrow(boardConfig, state.turn.currentTileIndex);
+
+  if (currentTile.tileType !== "property" || !currentTile.propertyId) {
+    throw new EngineRuleError("The current engine tile is not a purchasable property tile.");
+  }
+
+  if (currentTile.propertyId !== action.propertyId) {
+    throw new EngineRuleError("The requested property does not match the current engine tile.");
+  }
+
+  const nextState = cloneMatchState(state);
+  const purchaseResult = purchasePropertyOrThrow(
+    nextState,
+    boardConfig,
+    action.actingPlayerId,
+    action.propertyId
+  );
+
+  nextState.turn = createAwaitEndTurnState(nextState.turn, state.turn.currentTileIndex);
+
+  return {
+    state: nextState,
+    events: [purchaseResult.paymentEvent, purchaseResult.purchaseEvent],
+    availableActions: getAvailableActions(nextState),
+    turnCompleted: false
+  };
+}
+
+function applySkipOptionalActionTransition(
   input: EngineTransitionInput
 ): EngineTransitionResult {
   const { state, action } = input;
+
+  if (action.type !== "skip_optional_action") {
+    throw new EngineRuleError("Invalid engine action passed to skip-optional-action transition.");
+  }
+
+  if (state.turn.phase !== "await_optional_action") {
+    throw new EngineRuleError("The engine is not waiting for an optional property purchase.");
+  }
+
+  if (state.turn.currentTileIndex === null) {
+    throw new EngineRuleError("The current engine turn does not have a resolved tile index.");
+  }
+
+  const nextState = cloneMatchState(state);
+  nextState.turn = createAwaitEndTurnState(nextState.turn, state.turn.currentTileIndex);
+
+  return {
+    state: nextState,
+    events: [],
+    availableActions: getAvailableActions(nextState),
+    turnCompleted: false
+  };
+}
+
+function applyEndTurnTransition(
+  input: EngineTransitionInput
+): EngineTransitionResult {
+  const { state, action, now } = input;
 
   if (action.type !== "end_turn") {
     throw new EngineRuleError("Invalid engine action passed to end-turn transition.");
@@ -135,20 +230,11 @@ function applyEndTurnTransition(
   }
 
   const nextState = cloneMatchState(state);
-  const nextActivePlayerId = getNextActivePlayerId(nextState, action.actingPlayerId);
-
-  nextState.turn = createAwaitRollTurnState(nextState.turn, nextActivePlayerId);
-
-  const turnAdvancedEvent: EngineTurnAdvancedEvent = {
-    type: "turn_advanced",
-    fromPlayerId: action.actingPlayerId,
-    toPlayerId: nextActivePlayerId,
-    turnNumber: nextState.turn.turnNumber
-  };
+  const events = advanceToNextPlayableTurn(nextState, action.actingPlayerId, now);
 
   return {
     state: nextState,
-    events: [turnAdvancedEvent],
+    events,
     availableActions: getAvailableActions(nextState),
     turnCompleted: true
   };
@@ -163,12 +249,12 @@ export function applyEngineAction(
   switch (input.action.type) {
     case "roll_dice":
       return applyRollDiceTransition(input);
+    case "buy_property":
+      return applyBuyPropertyTransition(input);
+    case "skip_optional_action":
+      return applySkipOptionalActionTransition(input);
     case "end_turn":
       return applyEndTurnTransition(input);
-    case "buy_property":
-      throw new EngineRuleError(
-        "Property purchase resolution is not implemented until Phase 6 Step 4."
-      );
     default:
       throw new EngineRuleError("Unsupported engine action.");
   }

@@ -6,18 +6,26 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@colyseus/schema": "^4.0.8",
     "@monopoly/game-engine": "0.0.0",
     "@monopoly/shared-config": "0.0.0",
     "@monopoly/shared-types": "0.0.0",
-    "colyseus": "^0.17.8"
+    "@prisma/adapter-pg": "^7.6.0",
+    "@prisma/client": "^7.6.0",
+    "colyseus": "^0.17.8",
+    "dotenv": "^17.3.1",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "prisma": "^7.6.0",
     "tsx": "^4.20.5"
   }
 }

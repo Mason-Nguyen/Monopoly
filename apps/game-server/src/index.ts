@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { gameServer } from "./app.config.js";
 import { getGameServerRuntimeConfig } from "./config/index.js";
 

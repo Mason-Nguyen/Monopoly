@@ -3,6 +3,7 @@ import type { PlayerId, PropertyId } from "@monopoly/shared-types";
 export const ENGINE_ACTION_TYPES = [
   "roll_dice",
   "buy_property",
+  "skip_optional_action",
   "end_turn"
 ] as const;
 
@@ -33,6 +34,11 @@ export interface EngineBuyPropertyAction {
   propertyId: PropertyId;
 }
 
+export interface EngineSkipOptionalAction {
+  type: "skip_optional_action";
+  actingPlayerId: PlayerId;
+}
+
 export interface EngineEndTurnAction {
   type: "end_turn";
   actingPlayerId: PlayerId;
@@ -41,4 +47,5 @@ export interface EngineEndTurnAction {
 export type EngineAction =
   | EngineRollDiceAction
   | EngineBuyPropertyAction
+  | EngineSkipOptionalAction
   | EngineEndTurnAction;

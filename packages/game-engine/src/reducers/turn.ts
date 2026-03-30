@@ -1,7 +1,8 @@
-import type { PlayerId, TurnPhase } from "@monopoly/shared-types";
+import type { PlayerId, TileIndex, TurnPhase } from "@monopoly/shared-types";
 import type { EngineMatchState, EngineTurnState } from "../types/index.js";
 
 const AWAIT_ROLL_PHASE: TurnPhase = "await_roll";
+const AWAIT_OPTIONAL_ACTION_PHASE: TurnPhase = "await_optional_action";
 const AWAIT_END_TURN_PHASE: TurnPhase = "await_end_turn";
 const TURN_COMPLETE_PHASE: TurnPhase = "turn_complete";
 
@@ -42,6 +43,32 @@ export function createAwaitRollTurnState(
     phase: AWAIT_ROLL_PHASE,
     dice: null,
     currentTileIndex: null,
+    canBuyCurrentProperty: false,
+    awaitingInput: true
+  };
+}
+
+export function createAwaitOptionalActionTurnState(
+  currentTurn: EngineTurnState,
+  tileIndex: TileIndex
+): EngineTurnState {
+  return {
+    ...currentTurn,
+    phase: AWAIT_OPTIONAL_ACTION_PHASE,
+    currentTileIndex: tileIndex,
+    canBuyCurrentProperty: true,
+    awaitingInput: true
+  };
+}
+
+export function createAwaitEndTurnState(
+  currentTurn: EngineTurnState,
+  tileIndex: TileIndex
+): EngineTurnState {
+  return {
+    ...currentTurn,
+    phase: AWAIT_END_TURN_PHASE,
+    currentTileIndex: tileIndex,
     canBuyCurrentProperty: false,
     awaitingInput: true
   };

@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MatchStatus {
+  playing
+  finished
+}
+
+enum MatchEndReason {
+  last_player_remaining
+  all_others_bankrupt
+  all_others_abandoned
+  manual_termination_dev_only
+}
+
+enum EliminationReason {
+  bankrupt
+  abandoned
+}
+
+model Match {
+  id             String          @id @db.Uuid
+  sourceLobbyId  String?         @map("source_lobby_id")
+  boardConfigKey String          @map("board_config_key")
+  status         MatchStatus     @default(playing)
+  startedAt      DateTime        @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime?       @map("finished_at") @db.Timestamptz(6)
+  endReason      MatchEndReason? @map("end_reason")
+  winnerUserId   String?         @map("winner_user_id") @db.Uuid
+  playerCount    Int             @map("player_count")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("matches")
+}
+
+model MatchPlayer {
+  id                  String             @id @default(uuid()) @db.Uuid
+  matchId             String             @map("match_id") @db.Uuid
+  userId              String             @map("user_id") @db.Uuid
+  displayNameSnapshot String             @map("display_name_snapshot")
+  turnOrder           Int                @map("turn_order")
+  startBalance        Int                @map("start_balance")
+  finalBalance        Int?               @map("final_balance")
+  finalPosition       Int?               @map("final_position")
+  finalRank           Int?               @map("final_rank")
+  isBankrupt          Boolean            @default(false) @map("is_bankrupt")
+  isAbandoned         Boolean            @default(false) @map("is_abandoned")
+  eliminationReason   EliminationReason? @map("elimination_reason")
+  eliminatedAt        DateTime?          @map("eliminated_at") @db.Timestamptz(6)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([matchId, userId], map: "match_players_match_id_user_id_key")
+  @@unique([matchId, turnOrder], map: "match_players_match_id_turn_order_key")
+  @@map("match_players")
+}
+
+model LeaderboardStat {
+  userId        String    @id @map("user_id") @db.Uuid
+  matchesPlayed Int       @default(0) @map("matches_played")
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  bankruptcies  Int       @default(0)
+  abandons      Int       @default(0)
+  lastMatchAt   DateTime? @map("last_match_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("leaderboard_stats")
+}

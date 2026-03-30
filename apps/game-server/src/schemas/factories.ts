@@ -4,7 +4,12 @@ import {
   MVP_MIN_PLAYERS,
   MVP_STARTING_MONEY
 } from "@monopoly/shared-config";
-import type { LobbyJoinOptions, MatchJoinOptions, PlayerIdentity } from "@monopoly/shared-types";
+import type {
+  ConnectionStatus,
+  LobbyJoinOptions,
+  MatchJoinOptions,
+  PlayerIdentity
+} from "@monopoly/shared-types";
 import { createLobbyId, createMatchId } from "../lib/index.js";
 import {
   BoardStateSchema,
@@ -31,6 +36,7 @@ export interface MonopolyRoomCreateOptions {
   matchId?: string;
   sourceLobbyId?: string;
   players?: PlayerIdentity[];
+  startedAt?: number;
 }
 
 export function createLobbyPlayerState(options: LobbyJoinOptions, isHost: boolean): LobbyPlayerStateSchema {
@@ -60,11 +66,18 @@ export function createJailState(): JailStateSchema {
   return new JailStateSchema();
 }
 
-export function createConnectionState(): ConnectionStateSchema {
-  return new ConnectionStateSchema();
+export function createConnectionState(status: ConnectionStatus = "connected"): ConnectionStateSchema {
+  const connection = new ConnectionStateSchema();
+  connection.status = status;
+  connection.reconnectDeadlineAt = 0;
+  return connection;
 }
 
-export function createMatchPlayerState(identity: PlayerIdentity, turnOrder: number): MatchPlayerStateSchema {
+export function createMatchPlayerState(
+  identity: PlayerIdentity,
+  turnOrder: number,
+  connectionStatus: ConnectionStatus = "connected"
+): MatchPlayerStateSchema {
   const player = new MatchPlayerStateSchema();
   player.playerId = identity.playerId;
   player.displayName = identity.displayName;
@@ -74,7 +87,7 @@ export function createMatchPlayerState(identity: PlayerIdentity, turnOrder: numb
   player.isBankrupt = false;
   player.isAbandoned = false;
   player.jail = createJailState();
-  player.connection = createConnectionState();
+  player.connection = createConnectionState(connectionStatus);
   return player;
 }
 
@@ -137,34 +150,49 @@ export function createEmptyResultState(): MatchResultStateSchema {
   return new MatchResultStateSchema();
 }
 
-export function createMonopolyRoomState(options: MonopolyRoomCreateOptions = {}): MonopolyRoomStateSchema {
+export function createEmptyMonopolyRoomState(
+  options: MonopolyRoomCreateOptions = {}
+): MonopolyRoomStateSchema {
   const state = new MonopolyRoomStateSchema();
-  const players = options.players ?? [];
 
   state.matchId = options.matchId ?? createMatchId();
   state.sourceLobbyId = options.sourceLobbyId ?? "";
   state.status = "playing";
-  state.startedAt = Date.now();
+  state.startedAt = options.startedAt ?? Date.now();
   state.finishedAt = 0;
   state.board = createBoardState();
-
-  players.forEach((playerIdentity, index) => {
-    state.players.set(playerIdentity.playerId, createMatchPlayerState(playerIdentity, index));
-  });
-
-  const firstPlayerId = players[0]?.playerId ?? "";
-  state.turn = createTurnState(firstPlayerId);
+  state.turn = createTurnState();
   state.result = createEmptyResultState();
   return state;
 }
 
-export function createMatchPlayerFromJoinOptions(options: MatchJoinOptions, turnOrder: number): MatchPlayerStateSchema {
+export function createMonopolyRoomState(options: MonopolyRoomCreateOptions = {}): MonopolyRoomStateSchema {
+  const state = createEmptyMonopolyRoomState(options);
+  const players = options.players ?? [];
+
+  players.forEach((playerIdentity, index) => {
+    state.players.set(
+      playerIdentity.playerId,
+      createMatchPlayerState(playerIdentity, index + 1, "disconnected_reserved")
+    );
+  });
+
+  const firstPlayerId = players[0]?.playerId ?? "";
+  state.turn = createTurnState(firstPlayerId);
+  return state;
+}
+
+export function createMatchPlayerFromJoinOptions(
+  options: MatchJoinOptions,
+  turnOrder: number
+): MatchPlayerStateSchema {
   return createMatchPlayerState(
     {
       playerId: options.playerId,
       displayName: options.playerId,
       isGuest: true
     },
-    turnOrder
+    turnOrder,
+    "connected"
   );
 }

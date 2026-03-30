@@ -9,6 +9,7 @@
   "scripts": {
     "build": "npm run build --workspace @monopoly/shared-types && npm run build --workspace @monopoly/shared-config && npm run build --workspace @monopoly/game-engine && npm run build --workspace @monopoly/api && npm run build --workspace @monopoly/game-server && npm run build --workspace @monopoly/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:game-engine": "npm run build --workspace @monopoly/shared-types && npm run build --workspace @monopoly/shared-config && npm run build --workspace @monopoly/game-engine && npm run test --workspace @monopoly/game-engine",
     "dev:web": "npm run dev --workspace @monopoly/web",
     "dev:api": "npm run dev --workspace @monopoly/api",
     "dev:game-server": "npm run dev --workspace @monopoly/game-server"

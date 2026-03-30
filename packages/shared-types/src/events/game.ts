@@ -61,7 +61,7 @@ export interface GameTileResolvedEvent {
 }
 
 export interface GamePaymentAppliedEvent {
-  fromPlayerId: PlayerId;
+  fromPlayerId?: PlayerId;
   toPlayerId?: PlayerId;
   amount: number;
   reason: PaymentReason;
