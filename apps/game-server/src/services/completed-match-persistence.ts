@@ -1,14 +1,26 @@
-import type { EngineTransitionResult } from "@monopoly/game-engine";
+﻿import type { EngineTransitionResult } from "@monopoly/game-engine";
 import type { MonopolyRoom } from "../rooms/MonopolyRoom.js";
+import { getGameServerPersistenceDatabaseConfig } from "../persistence/config.js";
 import {
   buildCompletedMatchPersistenceSnapshot,
-  createCompletedMatchPersistenceRepository,
-  isGameServerPersistenceConfigured,
-  type CompletedMatchPersistenceRepository,
-  type MatchEliminationRecord,
-  type PersistedCompletedMatchRecord
-} from "../persistence/index.js";
+  type MatchEliminationRecord
+} from "../persistence/snapshot.js";
+import type {
+  CompletedMatchPersistenceRepository,
+  PersistedCompletedMatchRecord
+} from "../persistence/repositories/completed-match.repository.js";
 import { broadcastEngineTransitionEvents } from "./gameplay-event-broadcast.js";
+
+async function resolveCompletedMatchRepository(
+  repository?: CompletedMatchPersistenceRepository
+): Promise<CompletedMatchPersistenceRepository> {
+  if (repository) {
+    return repository;
+  }
+
+  const module = await import("../persistence/repositories/completed-match.repository.js");
+  return module.createCompletedMatchPersistenceRepository();
+}
 
 function recordEliminationTimeline(
   room: MonopolyRoom,
@@ -40,26 +52,28 @@ function recordEliminationTimeline(
 }
 
 export function canPersistCompletedMatches(): boolean {
-  return isGameServerPersistenceConfigured();
+  return getGameServerPersistenceDatabaseConfig().isConfigured;
 }
 
 export async function findPersistedCompletedMatchById(
   matchId: string,
-  repository: CompletedMatchPersistenceRepository = createCompletedMatchPersistenceRepository()
+  repository?: CompletedMatchPersistenceRepository
 ): Promise<PersistedCompletedMatchRecord | null> {
-  return repository.findCompletedMatchById(matchId);
+  const resolvedRepository = await resolveCompletedMatchRepository(repository);
+  return resolvedRepository.findCompletedMatchById(matchId);
 }
 
 export async function persistCompletedMatchSnapshot(
   snapshot: ReturnType<typeof buildCompletedMatchPersistenceSnapshot>,
-  repository: CompletedMatchPersistenceRepository = createCompletedMatchPersistenceRepository()
+  repository?: CompletedMatchPersistenceRepository
 ): Promise<void> {
-  await repository.persistCompletedMatchSnapshot(snapshot);
+  const resolvedRepository = await resolveCompletedMatchRepository(repository);
+  await resolvedRepository.persistCompletedMatchSnapshot(snapshot);
 }
 
 export async function persistCompletedMonopolyRoomIfNeeded(
   room: MonopolyRoom,
-  repository: CompletedMatchPersistenceRepository = createCompletedMatchPersistenceRepository()
+  repository?: CompletedMatchPersistenceRepository
 ): Promise<void> {
   if (room.state.status !== "finished") {
     return;
@@ -83,14 +97,18 @@ export async function persistCompletedMonopolyRoomIfNeeded(
   room.completedMatchPersistenceError = "";
 
   const persistencePromise = (async () => {
+    const resolvedRepository = await resolveCompletedMatchRepository(repository);
     const snapshot = buildCompletedMatchPersistenceSnapshot(
       room.state,
       room.eliminationTimeline
     );
-    const existing = await findPersistedCompletedMatchById(snapshot.match.matchId, repository);
+    const existing = await findPersistedCompletedMatchById(
+      snapshot.match.matchId,
+      resolvedRepository
+    );
 
     if (!existing) {
-      await persistCompletedMatchSnapshot(snapshot, repository);
+      await persistCompletedMatchSnapshot(snapshot, resolvedRepository);
     }
 
     room.completedMatchPersistenceStatus = "persisted";

@@ -6,8 +6,12 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "build:tests": "tsc -p tsconfig.tests.json",
     "start": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "test:integration": "npm run build:tests && node --test dist-tests/apps/game-server/tests/monopoly-room.integration.test.js",
+    "test:persistence": "node --import tsx --test tests/completed-match-persistence.integration.test.ts tests/completed-match-persistence.runtime.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "postinstall": "prisma generate"

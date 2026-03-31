@@ -16,6 +16,7 @@ export interface LobbyErrorEvent extends ErrorEventPayload<LobbyErrorCode> {}
 export interface LobbyMatchStartingEvent {
   lobbyId: LobbyId;
   matchId: MatchId;
+  roomId: string;
   transferDeadlineAt?: UnixTimestampMs;
 }
 

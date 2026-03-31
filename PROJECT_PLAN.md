@@ -14,10 +14,10 @@ This document is the baseline reference for architecture, tech choices, implemen
 
 ## Current Status
 
-As of 2026-03-29, the project is currently at:
+As of 2026-03-31, the project is currently at:
 
-- Phase 1 to Phase 8: complete
-- Phase 9: in progress, currently completed through Step 4
+- Phase 1 to Phase 11: complete
+- Phase 12: planned
 
 The current implementation already includes:
 
@@ -27,10 +27,12 @@ The current implementation already includes:
 - pure game engine rules with automated tests
 - Colyseus room integration backed by the pure engine
 - reconnect, abandonment, leave, and idle-turn lifecycle handling
-- first-wave live match persistence for `matches` and `match_players`
+- first-wave live match persistence for `matches`, `match_players`, and `leaderboard_stats`
+- automated integration coverage for room runtime and completed-match persistence
+- a functional frontend shell in `apps/web`, including routed screens, Zustand session state, API-backed leaderboard and match history views, live lobby surfaces, an in-match HUD/event-feed shell, and live lobby/match room wiring through Colyseus
+- route-level lazy loading and Vite manual chunk splitting so the frontend build no longer emits the previous large-chunk warning
 
 ## Final Tech Stack
-
 ### Frontend
 
 - React
@@ -238,10 +240,10 @@ Current first-wave write scope from the game-server:
 
 - matches
 - match_players
+- leaderboard_stats
 
 Planned next write scope:
 
-- leaderboard_stats
 - optionally richer transaction/event persistence later
 
 ## Colyseus Room Scope
@@ -446,25 +448,20 @@ Reference:
 
 Status:
 
-- In progress
-- Completed through Step 4
+- Complete
 
 Goal:
 
 - Persist completed live matches from the game-server into PostgreSQL.
 
-Completed so far:
+Completed scope:
 
 - persistence ownership and write boundary
 - completed-match snapshot and mapping design
 - game-server write-side Prisma adapter setup
 - completed-match persistence for `matches` and `match_players`
-
-Remaining in this phase:
-
-- leaderboard updates
-- verification notes
-- sign-off
+- leaderboard updates for `leaderboard_stats`
+- Phase 9 verification notes and sign-off
 
 Reference:
 
@@ -474,51 +471,53 @@ Reference:
 
 Status:
 
-- Planned
+- Complete
 
 Goal:
 
 - Add stronger automated verification around room lifecycle, authoritative gameplay, and persistence behavior.
 
-Planned tasks:
+Completed scope:
 
-- add room integration tests with client-like transport behavior
-- verify reconnect, abandonment, idle timeout, and persistence interactions together
-- test duplicate finalize attempts and persistence failure paths
-- strengthen confidence in room-to-database flows
+- room test harness baseline inside `apps/game-server`
+- gameplay and lifecycle integration tests for authoritative room behavior
+- PostgreSQL-backed persistence integration tests for completed matches and leaderboard updates
+- failure-path verification for persistence status markers, retry behavior, and duplicate finalize safety
+- consolidated verification summary and coverage review
+- Phase 10 sign-off
 
-Deliverables:
+Reference:
 
-- automated integration test coverage for critical multiplayer paths
-- persistence verification notes beyond smoke scripts
-
+- `docs/pharse10`
 ## Phase 11 - Functional Frontend and App Flow
 
 Status:
 
-- Planned
+- Complete
 
 Goal:
 
 - Build the functional web interface for the game before heavy visual polish.
 
-Planned tasks:
+Completed scope:
 
-- build landing page
-- build entry flow and home/menu surfaces
-- build lobby UI
-- build room UI
-- build in-game UI shell and HUD baseline
-- connect frontend to API
-- connect frontend to Colyseus
-- synchronize UI with room state and `game:*` events
+- landing, menu, leaderboard, match-history, and match-detail routes in `apps/web`
+- lobby list and lobby-room shells with ready-state and reconnect messaging patterns
+- shared frontend providers, query layer, and Zustand stores for session and UI state
+- in-match HUD shell with roster, action rail, economy cards, board window preview, connection banner, and filtered event feed
+- live Colyseus wiring for lobby creation, lobby-room join flow, real match-room handoff, and live match projection with preview fallback
+- route-level lazy loading and Vite manual chunking to resolve the previous large frontend build chunk warning
+- Phase 11 sign-off
 
 Deliverables:
 
-- end-to-end playable functional interface
+- end-to-end playable functional interface ready for Phase 12 board integration
+
+Reference:
+
+- `docs/pharse11`
 
 ## Phase 12 - 2.5D Board and Gameplay Scene
-
 Status:
 
 - Planned
@@ -621,3 +620,11 @@ Build in this order:
 - If a new feature does not align with the current milestone, place it in a later phase instead of forcing it early.
 - If real-time and persistence concerns conflict, prefer Colyseus for active state and PostgreSQL for durable state.
 - Keep this file aligned with the detailed `docs/pharse*` folders as implementation advances.
+
+
+
+
+
+
+
+

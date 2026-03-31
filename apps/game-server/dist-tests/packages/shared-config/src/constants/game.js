@@ -1,0 +1,8 @@
+export const MVP_MIN_PLAYERS = 4;
+export const MVP_MAX_PLAYERS = 6;
+export const MVP_STARTING_MONEY = 1500;
+export const MVP_START_SALARY = 200;
+export const MVP_JAIL_TURNS_REMAINING = 1;
+export const MVP_RECONNECT_TIMEOUT_MS = 90_000;
+export const MVP_MATCH_START_TRANSFER_TIMEOUT_MS = 30_000;
+export const MVP_IDLE_TURN_TIMEOUT_MS = 60_000;

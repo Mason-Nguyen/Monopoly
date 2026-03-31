@@ -1,11 +1,14 @@
-import {
+﻿import {
   MatchEndReason,
   MatchStatus,
   EliminationReason,
   type PrismaClient
 } from "../../../generated/prisma/client.js";
 import { getGameServerPrismaClient } from "../client.js";
-import type { CompletedMatchPersistenceSnapshot } from "../contracts.js";
+import type {
+  CompletedMatchPersistenceSnapshot,
+  PersistedLeaderboardDelta
+} from "../contracts.js";
 
 export interface PersistedCompletedMatchRecord {
   matchId: string;
@@ -15,6 +18,17 @@ export interface PersistedCompletedMatchRecord {
 export interface CompletedMatchPersistenceRepository {
   findCompletedMatchById(matchId: string): Promise<PersistedCompletedMatchRecord | null>;
   persistCompletedMatchSnapshot(snapshot: CompletedMatchPersistenceSnapshot): Promise<void>;
+}
+
+function resolveLatestMatchTimestamp(
+  currentLastMatchAt: Date | null,
+  nextLastMatchAt: Date
+): Date {
+  if (currentLastMatchAt === null || currentLastMatchAt < nextLastMatchAt) {
+    return nextLastMatchAt;
+  }
+
+  return currentLastMatchAt;
 }
 
 export class PrismaCompletedMatchPersistenceRepository
@@ -96,6 +110,61 @@ export class PrismaCompletedMatchPersistenceRepository
             player.eliminatedAt !== null ? new Date(player.eliminatedAt) : null
         }))
       });
+
+      for (const delta of snapshot.leaderboardDeltas) {
+        await this.upsertLeaderboardDelta(transaction, delta);
+      }
+    });
+  }
+
+  private async upsertLeaderboardDelta(
+    transaction: Pick<PrismaClient, "leaderboardStat">,
+    delta: PersistedLeaderboardDelta
+  ): Promise<void> {
+    const existingStat = await transaction.leaderboardStat.findUnique({
+      where: { userId: delta.userId },
+      select: {
+        userId: true,
+        lastMatchAt: true
+      }
+    });
+    const nextLastMatchAt = new Date(delta.lastMatchAt);
+
+    if (!existingStat) {
+      await transaction.leaderboardStat.create({
+        data: {
+          userId: delta.userId,
+          matchesPlayed: delta.matchesPlayedDelta,
+          wins: delta.winsDelta,
+          losses: delta.lossesDelta,
+          bankruptcies: delta.bankruptciesDelta,
+          abandons: delta.abandonsDelta,
+          lastMatchAt: nextLastMatchAt
+        }
+      });
+      return;
+    }
+
+    await transaction.leaderboardStat.update({
+      where: { userId: delta.userId },
+      data: {
+        matchesPlayed: {
+          increment: delta.matchesPlayedDelta
+        },
+        wins: {
+          increment: delta.winsDelta
+        },
+        losses: {
+          increment: delta.lossesDelta
+        },
+        bankruptcies: {
+          increment: delta.bankruptciesDelta
+        },
+        abandons: {
+          increment: delta.abandonsDelta
+        },
+        lastMatchAt: resolveLatestMatchTimestamp(existingStat.lastMatchAt, nextLastMatchAt)
+      }
     });
   }
 }
@@ -105,3 +174,4 @@ export function createCompletedMatchPersistenceRepository(
 ): CompletedMatchPersistenceRepository {
   return new PrismaCompletedMatchPersistenceRepository(prisma);
 }
+
