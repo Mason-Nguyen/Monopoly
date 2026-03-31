@@ -7,9 +7,12 @@ interface MatchUiStoreState {
   selectedPanel: MatchRailPanel;
   feedFilter: MatchFeedFilter;
   pendingCommandId: string | null;
+  isRightRailOpen: boolean;
   setSelectedPanel(value: MatchRailPanel): void;
   setFeedFilter(value: MatchFeedFilter): void;
   setPendingCommandId(value: string | null): void;
+  setRightRailOpen(value: boolean): void;
+  toggleRightRail(): void;
   clearPendingCommand(): void;
 }
 
@@ -17,6 +20,7 @@ export const useMatchUiStore = create<MatchUiStoreState>()((set) => ({
   selectedPanel: "actions",
   feedFilter: "all",
   pendingCommandId: null,
+  isRightRailOpen: false,
   setSelectedPanel(value) {
     set({
       selectedPanel: value
@@ -31,6 +35,16 @@ export const useMatchUiStore = create<MatchUiStoreState>()((set) => ({
     set({
       pendingCommandId: value
     });
+  },
+  setRightRailOpen(value) {
+    set({
+      isRightRailOpen: value
+    });
+  },
+  toggleRightRail() {
+    set((state) => ({
+      isRightRailOpen: !state.isRightRailOpen
+    }));
   },
   clearPendingCommand() {
     set({

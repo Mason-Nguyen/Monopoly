@@ -12,11 +12,13 @@
   "dependencies": {
     "@monopoly/shared-config": "0.0.0",
     "@monopoly/shared-types": "0.0.0",
+    "@react-three/fiber": "^9.3.0",
     "@tanstack/react-query": "^5.95.2",
     "colyseus.js": "^0.16.22",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.13.2",
+    "three": "^0.179.1",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },

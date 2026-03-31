@@ -1,19 +1,30 @@
-import { Link, Outlet, useLocation, useParams } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 import { formatCurrency } from "../../lib";
 import { truncateIdentifier, useMatchShellPreviewQuery } from "../../services";
 import { useMatchUiStore, useSessionStore } from "../../stores";
 import { LiveMatchRoomProvider, useLiveMatchRoom } from "./live-match-room-context";
 
-function Wordmark() {
-  return (
-    <Link className="wordmark" to="/">
-      <span className="wordmark__badge">MT</span>
-      <span>
-        <strong>Monopoly Table</strong>
-        <small>browser multiplayer club</small>
-      </span>
-    </Link>
-  );
+function formatRosterStatusLabel(
+  player: {
+    isActiveTurn: boolean;
+    isCurrentPlayer: boolean;
+    status: "active" | "waiting" | "reconnect_reserved";
+    position: number;
+  }
+) {
+  if (player.isActiveTurn) {
+    return "Turn";
+  }
+
+  if (player.status === "reconnect_reserved") {
+    return "Rejoin";
+  }
+
+  if (player.isCurrentPlayer) {
+    return "You";
+  }
+
+  return `Tile ${player.position}`;
 }
 
 function MatchShellFrame() {
@@ -23,11 +34,11 @@ function MatchShellFrame() {
   const displayName = useSessionStore((state) => state.displayName);
   const selectedPanel = useMatchUiStore((state) => state.selectedPanel);
   const feedFilter = useMatchUiStore((state) => state.feedFilter);
-  const pendingCommandId = useMatchUiStore((state) => state.pendingCommandId);
+  const isRightRailOpen = useMatchUiStore((state) => state.isRightRailOpen);
   const setSelectedPanel = useMatchUiStore((state) => state.setSelectedPanel);
   const setFeedFilter = useMatchUiStore((state) => state.setFeedFilter);
-  const setPendingCommandId = useMatchUiStore((state) => state.setPendingCommandId);
-  const clearPendingCommand = useMatchUiStore((state) => state.clearPendingCommand);
+  const setRightRailOpen = useMatchUiStore((state) => state.setRightRailOpen);
+  const toggleRightRail = useMatchUiStore((state) => state.toggleRightRail);
   const liveMatch = useLiveMatchRoom();
   const previewQuery = useMatchShellPreviewQuery(liveMatch.isLive ? null : matchId ?? null, {
     playerId: playerId ?? undefined,
@@ -38,207 +49,177 @@ function MatchShellFrame() {
   const filteredFeed = preview
     ? preview.feed.filter((entry) => feedFilter === "all" || entry.kind === feedFilter)
     : [];
-
-  async function handleAction(actionId: string, enabled: boolean) {
-    if (!enabled) {
-      return;
-    }
-
-    setSelectedPanel("actions");
-    setPendingCommandId(actionId);
-
-    if (!liveMatch.isLive) {
-      window.setTimeout(() => {
-        clearPendingCommand();
-      }, 900);
-      return;
-    }
-
-    try {
-      if (actionId === "roll_dice") {
-        await liveMatch.sendRollDice();
-      } else if (actionId === "buy_property") {
-        await liveMatch.sendBuyProperty();
-      } else if (actionId === "end_turn") {
-        await liveMatch.sendEndTurn();
-      }
-    } finally {
-      clearPendingCommand();
-    }
-  }
+  const visibleBanner = preview?.connectionBanner?.tone === "warn" ? preview.connectionBanner : null;
 
   return (
-    <div className="site-shell match-layout">
-      <header className="topbar topbar--match">
-        <Wordmark />
-        <nav className="topbar__links" aria-label="Match navigation">
-          <Link to="/play">Home</Link>
-          <Link to="/lobbies">Lobbies</Link>
-          <Link to="/matches">Match History</Link>
-        </nav>
-      </header>
-      <main className="match-layout__main">
-        <aside className="match-layout__rail match-layout__rail--left">
+    <div className="site-shell match-layout match-layout--no-header">
+      <main className="match-layout__main match-layout__main--playfield">
+        <aside className="match-layout__rail match-layout__rail--thin">
           {liveMatch.status === "connecting" && !preview ? (
-            <div className="match-rail-section">
+            <div className="match-rail-section match-rail-section--tight">
               <p className="sidebar__eyebrow">Connecting</p>
-              <h2>Preparing live HUD</h2>
-              <p>The match shell is synchronizing with Colyseus room state.</p>
+              <p>Preparing table</p>
             </div>
           ) : previewQuery.isError && !preview ? (
-            <div className="match-rail-section">
-              <p className="sidebar__eyebrow">Shell unavailable</p>
-              <h2>Match HUD failed</h2>
-              <p>{previewQuery.error instanceof Error ? previewQuery.error.message : "Unexpected shell preview error."}</p>
+            <div className="match-rail-section match-rail-section--tight">
+              <p className="sidebar__eyebrow">Unavailable</p>
+              <p>{previewQuery.error instanceof Error ? previewQuery.error.message : "Unexpected preview error."}</p>
             </div>
           ) : preview ? (
             <>
-              <section className="match-rail-section">
-                <p className="sidebar__eyebrow">{isResultRoute ? "Result context" : "Live match"}</p>
-                <h2>{isResultRoute ? "Finished-session shell" : `Turn ${preview.turnNumber}`}</h2>
-                <p>{isResultRoute ? `Result handoff for ${preview.matchId}.` : `${preview.phaseLabel} on ${preview.currentTileName}.`}</p>
-                <div className="detail-inline detail-inline--wrap">
-                  <span className="status-chip status-chip--soft">Focus {selectedPanel}</span>
-                  <span className="status-chip status-chip--ghost">Active {preview.players.find((player) => player.isActiveTurn)?.displayName ?? "Unknown"}</span>
-                  <span className={liveMatch.isLive ? "status-chip status-chip--soft" : "status-chip status-chip--ghost"}>
-                    {liveMatch.isLive ? `Room ${truncateIdentifier(liveMatch.roomId, 8, 4)}` : "Preview fallback"}
-                  </span>
-                </div>
-              </section>
-
-              <section className="match-rail-section">
-                <p className="sidebar__eyebrow">Compact roster</p>
-                <div className="match-roster-list">
+              <section className="match-rail-section match-rail-section--tight">
+                <p className="sidebar__eyebrow">Seats</p>
+                <div className="match-roster-list match-roster-list--thin">
                   {preview.players.map((player) => (
                     <article
                       key={player.playerId}
                       className={[
                         "match-roster-item",
+                        "match-roster-item--thin",
                         player.isActiveTurn ? "match-roster-item--active" : "",
                         player.isCurrentPlayer ? "match-roster-item--current" : ""
                       ].join(" ").trim()}
                     >
                       <div>
                         <strong>{player.displayName}</strong>
-                        <small>Tile {player.position}</small>
+                        <small>{formatRosterStatusLabel(player)}</small>
                       </div>
-                      <div>
-                        <strong>{formatCurrency(player.balance)}</strong>
-                        <small>{player.ownedPropertyCount} props</small>
-                      </div>
+                      <span className="match-roster-item__balance">{formatCurrency(player.balance)}</span>
                     </article>
                   ))}
                 </div>
               </section>
-
-              {!isResultRoute ? (
-                <section className="match-rail-section">
-                  <p className="sidebar__eyebrow">Action cluster</p>
-                  <div className="match-action-list">
-                    {preview.actions.map((action) => {
-                      const variant =
-                        action.tone === "primary"
-                          ? "button button--primary"
-                          : action.tone === "secondary"
-                            ? "button button--secondary"
-                            : "button button--ghost";
-                      const isPending = pendingCommandId === action.id;
-
-                      return (
-                        <button
-                          key={action.id}
-                          className={`${variant} match-action-button`}
-                          disabled={!action.enabled || (pendingCommandId !== null && !isPending)}
-                          onClick={() => {
-                            void handleAction(action.id, action.enabled);
-                          }}
-                          type="button"
-                        >
-                          {isPending ? (liveMatch.isLive ? "Sending Live Command..." : "Sending Preview...") : action.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="match-action-note">
-                    {preview.actions.find((action) => action.id === pendingCommandId)?.description ?? preview.actions[0]?.description}
-                  </p>
-                </section>
-              ) : null}
+              <section className="match-rail-section match-rail-section--muted match-rail-section--tight">
+                <p className="sidebar__eyebrow">Mode</p>
+                <p>{liveMatch.isLive ? `Live ${truncateIdentifier(liveMatch.roomId, 8, 4)}` : "Preview fallback"}</p>
+              </section>
             </>
           ) : (
-            <div className="match-rail-section">
+            <div className="match-rail-section match-rail-section--tight">
               <p className="sidebar__eyebrow">Waiting</p>
-              <h2>No match shell data yet</h2>
-              <p>The layout is waiting for either the live room or the preview fallback.</p>
+              <p>No roster yet</p>
             </div>
           )}
         </aside>
 
-        <section className="match-layout__stage">
-          <Outlet />
-        </section>
+        <section className="match-layout__playfield-shell">
+          {visibleBanner ? (
+            <section className="match-banner match-banner--warn match-stage-banner">
+              <p className="sidebar__eyebrow">Reconnect notice</p>
+              <h2>{visibleBanner.title}</h2>
+              <p>{visibleBanner.detail}</p>
+            </section>
+          ) : null}
 
-        <aside className="match-layout__rail match-layout__rail--right">
-          {preview ? (
-            <>
-              {preview.connectionBanner ? (
-                <section className={`match-banner match-banner--${preview.connectionBanner.tone}`}>
-                  <p className="sidebar__eyebrow">Connection state</p>
-                  <h2>{preview.connectionBanner.title}</h2>
-                  <p>{preview.connectionBanner.detail}</p>
-                </section>
-              ) : null}
+          <div className="match-layout__stage-frame">
+            {!isResultRoute && preview ? (
+              <>
+                <button
+                  className={isRightRailOpen ? "match-rail-toggle is-open" : "match-rail-toggle"}
+                  onClick={() => {
+                    setSelectedPanel(selectedPanel === "economy" ? "economy" : "feed");
+                    toggleRightRail();
+                  }}
+                  type="button"
+                >
+                  {isRightRailOpen ? "Hide Feed & Economy" : "Feed & Economy"}
+                </button>
 
-              <section className="match-rail-section">
-                <div className="section-heading section-heading--inline">
-                  <div>
-                    <p className="sidebar__eyebrow">Event feed</p>
-                    <h2>Recent room signals</h2>
-                  </div>
-                  <span className="meta-note">Filter {feedFilter}</span>
-                </div>
-                <div className="feed-filter-row">
-                  {[
-                    { id: "all", label: "All" },
-                    { id: "turn", label: "Turns" },
-                    { id: "payment", label: "Payments" },
-                    { id: "property", label: "Property" },
-                    { id: "connection", label: "Connection" }
-                  ].map((filter) => (
+                <aside className={isRightRailOpen ? "match-layout__rail-drawer is-open" : "match-layout__rail-drawer"}>
+                  <div className="match-layout__rail-drawer-header">
+                    <div>
+                      <p className="sidebar__eyebrow">Right rail</p>
+                      <h2>{selectedPanel === "economy" ? "Economy" : "Event Feed"}</h2>
+                    </div>
                     <button
-                      key={filter.id}
-                      className={feedFilter === filter.id ? "feed-filter-button is-active" : "feed-filter-button"}
+                      className="feed-filter-button"
                       onClick={() => {
-                        setSelectedPanel("feed");
-                        setFeedFilter(filter.id as typeof feedFilter);
+                        setRightRailOpen(false);
                       }}
                       type="button"
                     >
-                      {filter.label}
+                      Close
                     </button>
-                  ))}
-                </div>
-                <div className="match-feed">
-                  {filteredFeed.map((entry) => (
-                    <article key={entry.id} className={`match-feed__item match-feed__item--${entry.kind}`}>
-                      <div className="match-feed__meta">
-                        <strong>{entry.title}</strong>
-                        <small>{entry.timestampLabel}</small>
+                  </div>
+
+                  <section className="match-rail-section">
+                    <div className="section-heading section-heading--inline">
+                      <div>
+                        <p className="sidebar__eyebrow">Event feed</p>
+                        <h2>Recent room signals</h2>
                       </div>
-                      <p>{entry.detail}</p>
+                      <span className="meta-note">Filter {feedFilter}</span>
+                    </div>
+                    <div className="feed-filter-row">
+                      {[
+                        { id: "all", label: "All" },
+                        { id: "turn", label: "Turns" },
+                        { id: "payment", label: "Payments" },
+                        { id: "property", label: "Property" },
+                        { id: "connection", label: "Connection" }
+                      ].map((filter) => (
+                        <button
+                          key={filter.id}
+                          className={feedFilter === filter.id ? "feed-filter-button is-active" : "feed-filter-button"}
+                          onClick={() => {
+                            setSelectedPanel("feed");
+                            setFeedFilter(filter.id as typeof feedFilter);
+                            setRightRailOpen(true);
+                          }}
+                          type="button"
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="match-feed">
+                      {filteredFeed.map((entry) => (
+                        <article key={entry.id} className={`match-feed__item match-feed__item--${entry.kind}`}>
+                          <div className="match-feed__meta">
+                            <strong>{entry.title}</strong>
+                            <small>{entry.timestampLabel}</small>
+                          </div>
+                          <p>{entry.detail}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="match-rail-section">
+                    <div className="section-heading">
+                      <p className="sidebar__eyebrow">Economy mini-card</p>
+                      <h2>{preview.currentTileName}</h2>
+                    </div>
+                    <article className="economy-mini-card">
+                      <div>
+                        <span>Local cash</span>
+                        <strong>{formatCurrency(preview.economy.localBalance)}</strong>
+                      </div>
+                      <div>
+                        <span>Tile type</span>
+                        <strong>{preview.currentTileType}</strong>
+                      </div>
+                      <div>
+                        <span>Next buy</span>
+                        <strong>{preview.economy.nextBuyOpportunity}</strong>
+                      </div>
+                      <div>
+                        <span>Cost</span>
+                        <strong>
+                          {preview.economy.nextBuyCost !== null
+                            ? formatCurrency(preview.economy.nextBuyCost)
+                            : "-"}
+                        </strong>
+                      </div>
                     </article>
-                  ))}
-                </div>
-              </section>
-            </>
-          ) : (
-            <div className="match-rail-section">
-              <p className="sidebar__eyebrow">Feed unavailable</p>
-              <h2>Event rail pending</h2>
-              <p>Match event chrome will appear once the route resolves either a live room or a preview shell.</p>
-            </div>
-          )}
-        </aside>
+                  </section>
+                </aside>
+              </>
+            ) : null}
+
+            <Outlet />
+          </div>
+        </section>
       </main>
     </div>
   );

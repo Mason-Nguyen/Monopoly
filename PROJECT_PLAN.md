@@ -17,7 +17,7 @@ This document is the baseline reference for architecture, tech choices, implemen
 As of 2026-03-31, the project is currently at:
 
 - Phase 1 to Phase 11: complete
-- Phase 12: planned
+- Phase 12: in progress, Step 1 implemented
 
 The current implementation already includes:
 
@@ -31,8 +31,11 @@ The current implementation already includes:
 - automated integration coverage for room runtime and completed-match persistence
 - a functional frontend shell in `apps/web`, including routed screens, Zustand session state, API-backed leaderboard and match history views, live lobby surfaces, an in-match HUD/event-feed shell, and live lobby/match room wiring through Colyseus
 - route-level lazy loading and Vite manual chunk splitting so the frontend build no longer emits the previous large-chunk warning
+- Phase 12 planning documents for the 2.5D scene and Step 1 approval-first workflow
+- Phase 12 Step 1 board-first scene baseline implemented in the live match route, with a thin left rail, turn chip, toggleable right rail, and initial React Three Fiber board shell
 
 ## Final Tech Stack
+
 ### Frontend
 
 - React
@@ -520,11 +523,18 @@ Reference:
 ## Phase 12 - 2.5D Board and Gameplay Scene
 Status:
 
-- Planned
+- In progress
+- Step 1 implemented
 
 Goal:
 
 - Add the visual game board and token experience.
+
+Current planned scope:
+
+- Phase 12 plan and Step 1 scene-scope documentation created
+- approval-first workflow locked for each step: doc, mockup, approval, then implementation
+- Step 1 board-first scene baseline implemented with initial React Three Fiber board shell, top-edge turn chip, thin roster rail, and toggleable feed/economy drawer
 
 Planned tasks:
 
@@ -539,8 +549,11 @@ Deliverables:
 
 - playable 2.5D board scene
 
-## Phase 13 - Post-Match UX and Frontend Polish
+Reference:
 
+- `docs/pharse12`
+
+## Phase 13 - Post-Match UX and Frontend Polish
 Status:
 
 - Planned
